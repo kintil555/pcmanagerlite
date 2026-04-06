@@ -8,8 +8,12 @@
 #define MyAppExeName "PCManagerLite.exe"
 #define MyAppDescription "Lightweight PC Management Utility"
 
-; Root of the repo is one level up from this .iss file
-#define RepoRoot RemoveBackslash(ExpandConstant('{#SourcePath}\..\'))
+; RepoRoot is passed in from the command line:
+;   ISCC.exe installer.iss /DRepoRoot="D:\path\to\repo"
+; This avoids any ISPP path-resolution issues.
+#ifndef RepoRoot
+  #define RepoRoot "..\"
+#endif
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
