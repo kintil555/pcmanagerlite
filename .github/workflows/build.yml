@@ -59,15 +59,11 @@ jobs:
         run: |
           choco install innosetup --no-progress -y
 
-      # ── Create installer_output dir ───────────────────────────────────
-      - name: Prepare installer output directory
-        run: |
-          New-Item -ItemType Directory -Force -Path installer_output
-
       # ── Compile Inno Setup installer ──────────────────────────────────
       - name: Build Installer with Inno Setup
         run: |
           $inno = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          # Run from repo root — installer.iss uses {#SourcePath} for all paths
           & $inno installer\installer.iss
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Inno Setup build failed"
@@ -80,7 +76,11 @@ jobs:
           Write-Host "=== dist\ ==="
           Get-ChildItem dist\
           Write-Host "=== installer_output\ ==="
-          Get-ChildItem installer_output\
+          if (Test-Path "installer_output") {
+            Get-ChildItem installer_output\
+          } else {
+            Write-Warning "installer_output folder not found"
+          }
 
       # ── Get version from tag ──────────────────────────────────────────
       - name: Extract version
