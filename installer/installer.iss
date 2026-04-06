@@ -8,6 +8,9 @@
 #define MyAppExeName "PCManagerLite.exe"
 #define MyAppDescription "Lightweight PC Management Utility"
 
+; Root of the repo is one level up from this .iss file
+#define RepoRoot RemoveBackslash(ExpandConstant('{#SourcePath}\..\'))
+
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName={#MyAppName}
@@ -25,10 +28,11 @@ SolidCompression=yes
 ; Visual
 WizardStyle=modern
 WizardResizable=no
-; Output
-OutputDir=installer_output
+; Output — absolute path so it always lands at repo root\installer_output\
+OutputDir={#RepoRoot}installer_output
 OutputBaseFilename=PCManagerLite_Setup_v{#MyAppVersion}
-SetupIconFile=assets\icon.ico
+; Icon — absolute path relative to repo root
+SetupIconFile={#RepoRoot}assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ; Privileges
 PrivilegesRequired=admin
@@ -48,10 +52,10 @@ Name: "startmenu";   Description: "Create Start Menu shortcut";   GroupDescripti
 Name: "autostart";   Description: "Start PC Manager Lite with Windows"; GroupDescription: "Startup:"; Flags: unchecked
 
 [Files]
-Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "assets\icon.ico";      DestDir: "{app}\assets"; Flags: ignoreversion
-Source: "assets\icon.png";      DestDir: "{app}\assets"; Flags: ignoreversion
-Source: "README.md";            DestDir: "{app}"; Flags: ignoreversion isreadme skipifsourcedoesntexist
+Source: "{#RepoRoot}dist\{#MyAppExeName}";  DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RepoRoot}assets\icon.ico";       DestDir: "{app}\assets"; Flags: ignoreversion
+Source: "{#RepoRoot}assets\icon.png";       DestDir: "{app}\assets"; Flags: ignoreversion
+Source: "{#RepoRoot}README.md";             DestDir: "{app}"; Flags: ignoreversion isreadme skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}";            Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\icon.ico"
