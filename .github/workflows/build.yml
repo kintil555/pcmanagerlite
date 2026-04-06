@@ -1,0 +1,151 @@
+name: Build & Release PC Manager Lite
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'       # triggers on version tags like v1.0.0
+  workflow_dispatch:   # manual trigger for testing
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: PCManagerLite
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Python setup ─────────────────────────────────────────────────
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      # ── Install dependencies ──────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # ── Build EXE with PyInstaller ────────────────────────────────────
+      - name: Build EXE with PyInstaller
+        run: |
+          pyinstaller PCManagerLite.spec --clean --noconfirm
+        env:
+          PYTHONPATH: src
+
+      # ── Verify build ──────────────────────────────────────────────────
+      - name: Verify EXE exists
+        run: |
+          if (!(Test-Path "dist\PCManagerLite.exe")) {
+            Write-Error "Build failed: EXE not found"
+            exit 1
+          }
+          $size = (Get-Item "dist\PCManagerLite.exe").length / 1MB
+          Write-Host "✓ EXE built successfully: $([math]::Round($size, 1)) MB"
+
+      # ── Install Inno Setup ────────────────────────────────────────────
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress -y
+
+      # ── Create installer_output dir ───────────────────────────────────
+      - name: Prepare installer output directory
+        run: |
+          New-Item -ItemType Directory -Force -Path installer_output
+
+      # ── Compile Inno Setup installer ──────────────────────────────────
+      - name: Build Installer with Inno Setup
+        run: |
+          $inno = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          & $inno installer\installer.iss
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Inno Setup build failed"
+            exit 1
+          }
+
+      # ── List outputs ──────────────────────────────────────────────────
+      - name: List build artifacts
+        run: |
+          Write-Host "=== dist\ ==="
+          Get-ChildItem dist\
+          Write-Host "=== installer_output\ ==="
+          Get-ChildItem installer_output\
+
+      # ── Get version from tag ──────────────────────────────────────────
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="dev-$(date +%Y%m%d-%H%M%S)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      # ── Upload EXE artifact ───────────────────────────────────────────
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCManagerLite-${{ steps.version.outputs.version }}-exe
+          path: dist/PCManagerLite.exe
+          retention-days: 30
+
+      # ── Upload Installer artifact ─────────────────────────────────────
+      - name: Upload Installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCManagerLite-${{ steps.version.outputs.version }}-installer
+          path: installer_output/*.exe
+          retention-days: 30
+
+      # ── Create GitHub Release (only on tag push) ──────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "PC Manager Lite ${{ steps.version.outputs.version }}"
+          draft: false
+          prerelease: false
+          body: |
+            ## 🖥️ PC Manager Lite ${{ steps.version.outputs.version }}
+
+            A lightweight PC management utility for Windows.
+
+            ### ✨ Features
+            - ⚡ **PC Boost** — Free RAM & clear temp files instantly
+            - 🗑️ **Deep Cleanup** — Clear browser cache, DNS, prefetch, recycle bin & more
+            - 🔄 **Process Manager** — Monitor & end processes
+            - 🚀 **Startup Manager** — Control startup programs
+            - ❤️ **Health Check** — Full system health analysis
+            - 🔔 **System Tray** — Runs quietly in the background
+
+            ### 📥 Download
+            | File | Description |
+            |------|-------------|
+            | `PCManagerLite_Setup_v*.exe` | **Recommended** — Full installer with Start Menu & Desktop shortcut |
+            | `PCManagerLite.exe` | Portable executable (no installation needed) |
+
+            ### ⚠️ Requirements
+            - Windows 10 (build 17763+) or Windows 11
+            - Run as Administrator for full functionality
+
+            ### 🔒 Note
+            Windows SmartScreen may warn about the app since it's not code-signed. Click "More info → Run anyway" to proceed.
+          files: |
+            dist/PCManagerLite.exe
+            installer_output/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
