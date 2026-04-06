@@ -62,9 +62,9 @@ jobs:
       # ── Compile Inno Setup installer ──────────────────────────────────
       - name: Build Installer with Inno Setup
         run: |
-          $inno = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          # Run from repo root — installer.iss uses {#SourcePath} for all paths
-          & $inno installer\installer.iss
+          $inno  = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          $root  = $env:GITHUB_WORKSPACE   # e.g. D:\a\pcmanagerlite\pcmanagerlite
+          & $inno installer\installer.iss "/DRepoRoot=$root\"
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Inno Setup build failed"
             exit 1
